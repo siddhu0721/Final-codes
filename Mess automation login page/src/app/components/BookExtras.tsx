@@ -5,14 +5,17 @@ interface ExtraItem {
   id: string;
   name: string;
   price: number;
-  category: string;
-  available: boolean;
+  mealType: string;
+  isAvailable: boolean;
   stock: number; // plates left
 }
 
 interface PreBookItem {
+  id: string;
   dishName: string;
+  price: number;
   meal: 'breakfast' | 'lunch' | 'dinner';
+  date: string;
   booked: boolean;
 }
 
@@ -38,8 +41,8 @@ export function BookExtras() {
              id: String(i.id),
              name: i.name,
              price: parseFloat(i.price),
-             category: i.category,
-             available: i.isAvailable,
+             mealType: i.mealType,
+             isAvailable: i.isAvailable,
              stock: i.stockQuantity
           }));
           setExtraItems(items);
@@ -164,10 +167,6 @@ export function BookExtras() {
     
     try {
       const token = localStorage.getItem('token');
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const dateStr = tomorrow.toISOString().split('T')[0];
-
       for (const item of bookedItems) {
         await fetch('http://localhost:5000/api/pre-booking', {
           method: 'POST',
@@ -184,14 +183,14 @@ export function BookExtras() {
         });
       }
 
-      alert(`Successfully pre-booked ${bookedItems.length} items for tomorrow (${dateStr})!`);
+      alert(`Successfully pre-booked ${bookedItems.length} items!`);
       setPreBookings(prev => prev.map(item => ({ ...item, booked: false })));
     } catch (err) {
       alert("Failed to connect to backend for pre-booking");
     }
   };
 
-  const categories = [...new Set(extraItems.map(item => item.category))];
+  const categories = [...new Set(extraItems.map(item => item.mealType))];
   const breakfastItems = preBookings.filter(item => item.meal === 'breakfast');
   const lunchItems = preBookings.filter(item => item.meal === 'lunch');
   const dinnerItems = preBookings.filter(item => item.meal === 'dinner');
@@ -237,7 +236,7 @@ export function BookExtras() {
               <div key={category} className="bg-white border rounded-lg p-6 shadow-sm">
                 <h3 className="text-xl font-bold mb-4">{category}</h3>
                 {extraItems
-                  .filter(item => item.category === category)
+                  .filter(item => item.mealType === category)
                   .map(item => (
                     <div key={item.id} className="flex justify-between items-center p-4 border rounded-lg mb-3">
                       <div>
@@ -248,7 +247,7 @@ export function BookExtras() {
                         </p>
                       </div>
 
-                      {item.available && item.stock > 0 && (
+                      {item.isAvailable && item.stock > 0 && (
                         <div className="flex items-center gap-2">
                           {cart[item.id] ? (
                             <>
@@ -325,7 +324,10 @@ export function BookExtras() {
                   const globalIndex = preBookings.findIndex(p => p === item);
                   return (
                     <div key={index} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg mb-2">
-                      <span>{item.dishName}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold">{item.dishName}</span>
+                        <span className="text-xs text-gray-500">Price: ₹{item.price} | Date: {item.date}</span>
+                      </div>
                       <button
                         onClick={() => togglePreBooking(globalIndex)}
                         className={`px-4 py-2 rounded-lg font-semibold ${

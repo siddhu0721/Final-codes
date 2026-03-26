@@ -19,6 +19,7 @@ export function LoginForm() {
   const [name, setName] = useState('');
   const [rollNo, setRollNo] = useState('');
   const [roomNo, setRoomNo] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<'student' | 'manager'>('student');
   const [otp, setOtp] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
@@ -118,23 +119,11 @@ export function LoginForm() {
   const handleRegister = async () => {
     if (!showOtpInput) {
       // Step 1: Send registration details and get OTP
-      let images: string[] = [];
-      if (authMethod === 'face') {
-        setScanProgress(0);
-        images = await captureFrames();
-        if (images.length === 0) {
-            alert("Camera capture failed during scanning.");
-            return;
-        }
-        setCapturedImages(images);
-        setShowWebcam(false); 
-      }
-
       try {
         const response = await fetch('http://localhost:5000/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, rollNo, email, password, roomNo }),
+          body: JSON.stringify({ name, rollNo, email, password, roomNo, phone }),
         });
         const data = await response.json();
 
@@ -143,11 +132,9 @@ export function LoginForm() {
           setShowOtpInput(true);
         } else {
           alert(data.error || "Registration failed.");
-          setShowWebcam(true);
         }
       } catch (error) {
         alert("Backend unreachable.");
-        setShowWebcam(true);
       }
     } else {
       // Step 2: Verify OTP
@@ -160,35 +147,7 @@ export function LoginForm() {
         const data = await response.json();
 
         if (response.ok && data.token) {
-          // If Face scan was used, train the AI now!
-          if (authMethod === 'face' && capturedImages.length > 0) {
-            setStatusMessage("Verifying Face... Please wait (AI Training)");
-            try {
-              const faceRes = await fetchWithTimeout('http://localhost:5000/api/auth/register-face', {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${data.token}`
-                },
-                body: JSON.stringify({ images: capturedImages }),
-              }, 180000); // 3 MINUTE TIMEOUT FOR FACE TRAINING
-
-              const faceData = await faceRes.json();
-              if (!faceRes.ok) {
-                alert(faceData.error || "Face AI training failed, but account was created.");
-              } else {
-                alert("Registration & AI Training Successful!");
-              }
-            } catch (err: any) {
-              if (err.name === 'AbortError') {
-                alert("AI training is taking longer than expected. Your account was created, but face login might not be ready yet. Please try logging in with your password later.");
-              } else {
-                alert("Registration successful, but face training failed.");
-              }
-            }
-          } else {
-            alert("Registration Successful!");
-          }
+          alert("Registration Successful!");
           
           // Reset state to Login after successful registration
           localStorage.setItem('token', data.token);
@@ -258,9 +217,8 @@ export function LoginForm() {
             )}
 
             {!isLogin && !showOtpInput && (
-                <div className="flex gap-2 mb-4">
-                  <button type="button" onClick={() => setAuthMethod('password')} className={`flex-1 py-2 rounded border text-xs font-medium ${authMethod === 'password' ? 'bg-black text-white' : 'bg-white text-gray-700'}`}>Standard Register</button>
-                  <button type="button" onClick={() => setAuthMethod('face')} className={`flex-1 py-2 rounded border text-xs font-medium ${authMethod === 'face' ? 'bg-black text-white' : 'bg-white text-gray-700'}`}>Face Register</button>
+                <div className="flex gap-2 mb-4 bg-gray-50 p-1 rounded-lg">
+                  <div className="flex-1 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">New Student Registration</div>
                 </div>
             )}
 
@@ -282,6 +240,7 @@ export function LoginForm() {
                                 <input type="text" value={rollNo} onChange={(e) => setRollNo(e.target.value)} className="w-1/2 px-4 py-3 border border-gray-300 rounded-lg outline-none" placeholder="Roll No" required />
                                 <input type="text" value={roomNo} onChange={(e) => setRoomNo(e.target.value)} className="w-1/2 px-4 py-3 border border-gray-300 rounded-lg outline-none" placeholder="Room No" />
                               </div>
+                              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none" placeholder="Phone Number" />
                             </>
                           )}
                           
@@ -298,45 +257,24 @@ export function LoginForm() {
                       </>
                   )}
 
-                  {(!isLogin && authMethod === 'face') || (isLogin && authMethod === 'face') ? (
+                  {isLogin && authMethod === 'face' ? (
                     <>
                       <div className="border-4 border-black rounded-lg overflow-hidden bg-black flex items-center justify-center relative h-[250px] flex-col">
                           {showWebcam ? (
-                              <>
-                                <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" videoConstraints={{ width: 320, height: 240 }} className="w-full h-full object-cover absolute top-0 left-0" />
-                                {scanProgress > 0 && scanProgress < 100 && (
-                                  <div className="absolute bottom-4 left-4 right-4 bg-black/60 rounded p-2 text-white border border-gray-500 z-10 text-center">
-                                      <p className="text-xs font-bold mb-1">Scanning Face... {scanProgress}%</p>
-                                      <div className="w-full bg-gray-700 h-2 rounded overflow-hidden">
-                                        <div className="bg-green-500 h-full transition-all duration-200" style={{width: `${scanProgress}%`}}></div>
-                                      </div>
-                                  </div>
-                                )}
-                              </>
+                              <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" videoConstraints={{ width: 320, height: 240 }} className="w-full h-full object-cover absolute top-0 left-0" />
                           ) : (
-                              <div className="text-white text-center p-4 z-10"><p>⏳ Processing Images...</p></div>
+                              <div className="text-white text-center p-4 z-10"><p>⏳ Verifying Face...</p></div>
                           )}
-                          {!isLogin && authMethod === 'face' && (
-                              <button 
-                                type="button"
-                                onClick={() => setAuthMethod('password')}
-                                className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white px-3 py-1 rounded text-xs z-20 backdrop-blur-sm"
-                              >
-                                Skip & Register with Password
-                              </button>
-                          )}
-                          {isLogin && authMethod === 'face' && (
-                              <button 
-                                type="button"
-                                onClick={() => setAuthMethod('password')}
-                                className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white px-3 py-1 rounded text-xs z-20 backdrop-blur-sm"
-                              >
-                                Use Password Instead
-                              </button>
-                          )}
+                          <button 
+                            type="button"
+                            onClick={() => setAuthMethod('password')}
+                            className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white px-3 py-1 rounded text-xs z-20 backdrop-blur-sm"
+                          >
+                            Use Password Instead
+                          </button>
                       </div>
                       <p className="text-[10px] text-gray-400 text-center mt-1">
-                          {authMethod === 'face' ? (isLogin ? "Optional: Face ID allows one-click login" : "Optional: Register face for future one-click logins") : ""}
+                          Face ID allows one-click login if you have added a photo in your profile.
                       </p>
                     </>
                   ) : null}

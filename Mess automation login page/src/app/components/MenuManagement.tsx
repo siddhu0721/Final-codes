@@ -78,12 +78,12 @@ export function MenuManagement() {
       if (res.ok) {
         const data = await res.json();
         const items = data.items.map((i: any) => ({
-           id: String(i.id),
-           name: i.name,
-           price: parseFloat(i.price),
-           category: i.category,
-           available: i.isAvailable
-        }));
+            id: String(i.id),
+            name: i.name,
+            price: parseFloat(i.price),
+            mealType: i.mealType,
+            isAvailable: i.isAvailable
+         }));
         setExtraItems(items);
       }
     } catch (err) {
@@ -448,11 +448,10 @@ export function MenuManagement() {
                 <input type="text" placeholder="Item Name" value={newItemName} onChange={e => setNewItemName(e.target.value)} className="p-2 border border-black" />
                 <input type="number" placeholder="Price (₹)" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} className="p-2 border border-black" />
                 <select value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)} className="p-2 border border-black bg-white">
-                  <option>Snacks</option>
-                  <option>Breakfast</option>
-                  <option>Lunch</option>
-                  <option>Dinner</option>
-                  <option>All</option>
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="All">All</option>
                 </select>
               </div>
               <button 
@@ -500,7 +499,7 @@ export function MenuManagement() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button 
-                          onClick={() => toggleStatus(item.id, item.available)}
+                          onClick={() => toggleStatus(item.id, item.isAvailable)}
                           className="text-sm bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
                         >
                           Toggle

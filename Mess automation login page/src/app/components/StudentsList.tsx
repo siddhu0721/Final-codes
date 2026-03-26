@@ -8,7 +8,8 @@ interface Student {
   room: string;
   email: string;
   phone: string;
-  messStatus: 'active' | 'inactive' | 'rebate';
+  messStatus: 'active' | 'suspended' | 'pending';
+  hasFaceId: boolean;
   joinDate: string;
 }
 
@@ -32,8 +33,9 @@ export function StudentsList() {
           rollNumber: st.rollNo,
           room: st.roomNo || 'N/A',
           email: st.email,
-          phone: 'N/A',
-          messStatus: (st.messCardStatus || 'inactive').toLowerCase(),
+          phone: st.phone || 'N/A',
+          messStatus: (st.messCardStatus || 'pending').toLowerCase() as any,
+          hasFaceId: !!st.facePhoto,
           joinDate: st.createdAt
         }));
         setStudents(mapped);
@@ -46,6 +48,24 @@ export function StudentsList() {
   useEffect(() => {
     fetchStudents();
   }, []);
+
+  const toggleStatus = async (rollNo: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:5000/api/students/toggle-status/${rollNo}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchStudents();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to toggle status");
+      }
+    } catch (err) {
+      alert("Network error");
+    }
+  };
 
   const handleDelete = async (rollNo: string) => {
     if (!window.confirm(`Are you sure you want to delete student ${rollNo}?`)) return;
@@ -80,9 +100,9 @@ export function StudentsList() {
     switch (status) {
       case 'active':
         return 'bg-green-100 text-green-800 border-green-600';
-      case 'inactive':
+      case 'suspended':
         return 'bg-red-100 text-red-800 border-red-600';
-      case 'rebate':
+      case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-600';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-600';
@@ -117,10 +137,10 @@ export function StudentsList() {
             Active: {students.filter((s) => s.messStatus === 'active').length}
           </span>
           <span className="px-3 py-2 bg-yellow-100 border border-yellow-600">
-            Rebate: {students.filter((s) => s.messStatus === 'rebate').length}
+            Pending: {students.filter((s) => s.messStatus === 'pending').length}
           </span>
           <span className="px-3 py-2 bg-red-100 border border-red-600">
-            Inactive: {students.filter((s) => s.messStatus === 'inactive').length}
+            Suspended: {students.filter((s) => s.messStatus === 'suspended').length}
           </span>
         </div>
       </div>
@@ -135,7 +155,7 @@ export function StudentsList() {
                 <th className="px-4 py-3 text-left">Name</th>
                 <th className="px-4 py-3 text-left">Room</th>
                 <th className="px-4 py-3 text-left">Email</th>
-                <th className="px-4 py-3 text-left">Phone</th>
+                <th className="px-4 py-3 text-left">Face ID</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Join Date</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -151,7 +171,9 @@ export function StudentsList() {
                   <td className="px-4 py-3">{student.name}</td>
                   <td className="px-4 py-3">{student.room}</td>
                   <td className="px-4 py-3 text-sm">{student.email}</td>
-                  <td className="px-4 py-3 text-sm">{student.phone}</td>
+                  <td className="px-4 py-3 text-sm text-center">
+                    {student.hasFaceId ? '✅' : '❌'}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`text-xs px-2 py-1 border ${getStatusColor(
@@ -165,13 +187,26 @@ export function StudentsList() {
                     {new Date(student.joinDate).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(student.rollNumber)}
-                      className="p-1 hover:bg-gray-200 rounded group"
-                      title="Delete Student"
-                    >
-                      <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => toggleStatus(student.rollNumber)}
+                        className={`px-2 py-1 text-xs border rounded transition-colors ${
+                          student.messStatus === 'active' 
+                            ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                            : 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+                        }`}
+                        title={student.messStatus === 'active' ? 'Suspend' : 'Activate'}
+                      >
+                        {student.messStatus === 'active' ? 'Suspend' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(student.rollNumber)}
+                        className="p-1 hover:bg-gray-200 rounded group"
+                        title="Delete Student"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

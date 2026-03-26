@@ -10,6 +10,7 @@ interface RebateRequest {
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   requestDate: string;
+  amount: number;
 }
 
 export function RebateRequests() {
@@ -32,7 +33,8 @@ export function RebateRequests() {
           endDate: r.endDate,
           reason: r.reason,
           status: r.status.toLowerCase(),
-          requestDate: r.createdAt
+          requestDate: r.createdAt,
+          amount: parseFloat(r.amount || 0)
         }));
         setRequests(mapped);
       }
@@ -111,9 +113,15 @@ export function RebateRequests() {
                       ({Math.ceil((new Date(request.endDate).getTime() - new Date(request.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days)
                     </span>
                   </div>
-                  <div className="mt-3">
-                    <p className="text-sm font-medium mb-1">Reason:</p>
-                    <p className="text-sm text-gray-700">{request.reason}</p>
+                  <div className="mt-3 flex justify-between items-end">
+                    <div>
+                        <p className="text-sm font-medium mb-1">Reason:</p>
+                        <p className="text-sm text-gray-700">{request.reason}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-gray-500">Calculated Rebate:</p>
+                        <p className="text-lg font-bold text-green-700">₹{request.amount}</p>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
                     Requested on: {new Date(request.requestDate).toLocaleDateString()}
@@ -163,9 +171,14 @@ export function RebateRequests() {
                       {request.status.toUpperCase()}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {new Date(request.startDate).toLocaleDateString()} -{' '}
-                    {new Date(request.endDate).toLocaleDateString()}
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="text-gray-600">
+                      {new Date(request.startDate).toLocaleDateString()} -{' '}
+                      {new Date(request.endDate).toLocaleDateString()}
+                    </div>
+                    <div className="font-bold text-gray-800">
+                        ₹{request.amount}
+                    </div>
                   </div>
                 </div>
               </div>

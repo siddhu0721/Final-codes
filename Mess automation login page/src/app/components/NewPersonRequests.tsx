@@ -30,7 +30,7 @@ export function NewPersonRequests() {
             id: st.rollNo, // use rollNo as ID
             name: st.name,
             email: st.email,
-            phone: 'N/A', // Not supported in DB yet
+            phone: st.phone || 'N/A',
             rollNumber: st.rollNo,
             room: st.roomNo || 'N/A',
             requestDate: st.createdAt,

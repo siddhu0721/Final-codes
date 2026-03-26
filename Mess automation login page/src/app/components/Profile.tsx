@@ -1,5 +1,6 @@
-import { User, Mail, Building, Calendar } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { User, Mail, Building, Calendar, Camera, CheckCircle, XCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import Webcam from 'react-webcam';
 
 export function Profile() {
   const [studentData, setStudentData] = useState({
@@ -8,8 +9,13 @@ export function Profile() {
     email: 'Loading...',
     room: 'Loading...',
     joinedDate: 'Loading...',
-    messCard: 'Loading...'
+    messCard: 'Loading...',
+    hasFace: false
   });
+
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const webcamRef = useRef<Webcam>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -29,7 +35,8 @@ export function Profile() {
             email: data.email,
             room: data.roomNo || 'Not Assigned',
             messCard: data.messCardStatus,
-            joinedDate: new Date(data.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+            joinedDate: new Date(data.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+            hasFace: !!data.facePhoto
           }));
         }
       } catch (err) {
@@ -38,6 +45,38 @@ export function Profile() {
     };
     fetchProfile();
   }, []);
+
+  const handleCapture = async () => {
+    if (!webcamRef.current) return;
+    const imageSrc = webcamRef.current.getScreenshot();
+    if (!imageSrc) return;
+
+    setIsUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/auth/update-face-photo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ image: imageSrc })
+      });
+
+      if (res.ok) {
+        alert("Face profile updated successfully!");
+        setStudentData(prev => ({ ...prev, hasFace: true }));
+        setShowWebcam(false);
+      } else {
+        const data = await res.json();
+        alert(data.error || "Upload failed");
+      }
+    } catch (err) {
+      alert("Error connecting to server");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -86,9 +125,61 @@ export function Profile() {
         </div>
 
         {/* Additional Info */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-sm text-gray-600">Member Since</p>
-          <p className="font-semibold text-gray-800">{studentData.joinedDate}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-gray-600">Member Since</p>
+            <p className="font-semibold text-gray-800">{studentData.joinedDate}</p>
+          </div>
+
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Face Authentication</p>
+                {studentData.hasFace ? (
+                    <span className="flex items-center gap-1 text-xs font-bold text-green-600">
+                        <CheckCircle className="w-3 h-3" /> Registered
+                    </span>
+                ) : (
+                    <span className="flex items-center gap-1 text-xs font-bold text-red-500">
+                        <XCircle className="w-3 h-3" /> Not Set
+                    </span>
+                )}
+            </div>
+            {!showWebcam ? (
+                <button 
+                    onClick={() => setShowWebcam(true)}
+                    className="w-full py-2 bg-black text-white rounded text-sm font-medium hover:bg-gray-800 flex items-center justify-center gap-2"
+                >
+                    <Camera className="w-4 h-4" />
+                    {studentData.hasFace ? "Update Face Profile" : "Enrol Face ID"}
+                </button>
+            ) : (
+                <div className="space-y-2">
+                    <div className="relative aspect-video bg-black rounded overflow-hidden">
+                        <Webcam 
+                            ref={webcamRef}
+                            audio={false}
+                            screenshotFormat="image/jpeg"
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={handleCapture}
+                            disabled={isUploading}
+                            className="flex-1 py-1 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700 disabled:bg-gray-400"
+                        >
+                            {isUploading ? "Uploading..." : "Capture & Save"}
+                        </button>
+                        <button 
+                            onClick={() => setShowWebcam(false)}
+                            className="flex-1 py-1 bg-gray-200 text-gray-800 rounded text-xs font-bold hover:bg-gray-300"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
