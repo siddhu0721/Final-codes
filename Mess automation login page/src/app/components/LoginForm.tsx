@@ -100,14 +100,17 @@ export function LoginForm() {
           localStorage.setItem('token', data.token);
           localStorage.setItem('role', data.role);
           alert(`Welcome, ${data.user.name}`);
-          navigate('/student-dashboard'); // Face login is only for students currently
+          navigate('/student-dashboard'); 
         } else if (data.status === 'unknown' || response.status === 400) {
-          alert(data.error || "Face not recognized. Please try again or use password.");
+          alert(data.error || "Face not recognized. Please switch to the 'Password' tab to login.");
+          setAuthMethod('password'); // Automatically switch to password tab
         } else {
-          alert(data.error || "Action failed.");
+          alert(data.error || "Action failed. Please try password login.");
+          setAuthMethod('password');
         }
       } catch (error) {
-        alert("Backend unreachable.");
+        alert("Backend unreachable. Trying password login...");
+        setAuthMethod('password');
       }
     }
   };
@@ -296,7 +299,8 @@ export function LoginForm() {
                   )}
 
                   {(!isLogin && authMethod === 'face') || (isLogin && authMethod === 'face') ? (
-                      <div className="border-4 border-black rounded-lg overflow-hidden bg-black flex items-center justify-center relative h-[200px] flex-col">
+                    <>
+                      <div className="border-4 border-black rounded-lg overflow-hidden bg-black flex items-center justify-center relative h-[250px] flex-col">
                           {showWebcam ? (
                               <>
                                 <Webcam ref={webcamRef} audio={false} screenshotFormat="image/jpeg" videoConstraints={{ width: 320, height: 240 }} className="w-full h-full object-cover absolute top-0 left-0" />
@@ -312,7 +316,29 @@ export function LoginForm() {
                           ) : (
                               <div className="text-white text-center p-4 z-10"><p>⏳ Processing Images...</p></div>
                           )}
+                          {!isLogin && authMethod === 'face' && (
+                              <button 
+                                type="button"
+                                onClick={() => setAuthMethod('password')}
+                                className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white px-3 py-1 rounded text-xs z-20 backdrop-blur-sm"
+                              >
+                                Skip & Register with Password
+                              </button>
+                          )}
+                          {isLogin && authMethod === 'face' && (
+                              <button 
+                                type="button"
+                                onClick={() => setAuthMethod('password')}
+                                className="absolute top-2 right-2 bg-white/20 hover:bg-white/40 text-white px-3 py-1 rounded text-xs z-20 backdrop-blur-sm"
+                              >
+                                Use Password Instead
+                              </button>
+                          )}
                       </div>
+                      <p className="text-[10px] text-gray-400 text-center mt-1">
+                          {authMethod === 'face' ? (isLogin ? "Optional: Face ID allows one-click login" : "Optional: Register face for future one-click logins") : ""}
+                      </p>
+                    </>
                   ) : null}
                 </>
             )}

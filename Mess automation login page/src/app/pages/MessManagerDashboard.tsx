@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   MessageSquare,
@@ -10,15 +10,15 @@ import {
   CheckCircle,
   UserPlus
 } from 'lucide-react';
-import { Sidebar } from '@/app/components/Sidebar';
-import { VotesSection } from '@/app/components/VotesSection';
-import { RebateRequests } from '@/app/components/RebateRequests';
-import { StudentsList } from '@/app/components/StudentsList';
-import { FeedbackSection } from '@/app/components/FeedbackSection';
-import { ExtraBuyingHistory } from '@/app/components/ExtraBuyingHistory';
-import { MenuManagement } from '@/app/components/MenuManagement';
-import { PollManagement } from '@/app/components/PollManagement';
-import { NewPersonRequests } from '@/app/components/NewPersonRequests';
+import { Sidebar } from '../components/Sidebar';
+import { VotesSection } from '../components/VotesSection';
+import { RebateRequests } from '../components/RebateRequests';
+import { StudentsList } from '../components/StudentsList';
+import { FeedbackSection } from '../components/FeedbackSection';
+import { ExtraBuyingHistory } from '../components/ExtraBuyingHistory';
+import { MenuManagement } from '../components/MenuManagement';
+import { PollManagement } from '../components/PollManagement';
+import { NewPersonRequests } from '../components/NewPersonRequests';
 
 export default function ManagerDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -82,8 +82,8 @@ export default function ManagerDashboard() {
         </div>
 
         <div className="ml-auto text-sm">
-          <p className="font-medium">Wednesday, 21 January 2026</p>
-          <p className="text-xs text-gray-600">04:30:33 pm</p>
+          <p className="font-medium">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p className="text-xs text-gray-600">{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
         </div>
       </header>
 
@@ -106,11 +106,42 @@ export default function ManagerDashboard() {
 }
 
 function DashboardOverview() {
-  const stats = [
-    { label: 'Total Students', value: '350', icon: Users },
-    { label: 'Pending Rebates', value: '12', icon: FileText },
-    { label: 'Active Polls', value: '3', icon: BarChart3 },
-    { label: 'New Requests', value: '5', icon: UserPlus },
+  const [stats, setStats] = useState({
+    totalStudents: '0',
+    pendingRebates: '0',
+    activePolls: '0',
+    newPersonRequests: '0',
+    todaysPrebookings: '0'
+  });
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStats({
+          totalStudents: String(data.totalStudents || 0),
+          pendingRebates: String(data.pendingRebates || 0),
+          activePolls: String(data.activePolls || 0),
+          newPersonRequests: String(data.newPersonRequests || 0),
+          todaysPrebookings: String(data.todaysPrebookings || 0)
+        });
+      }
+    } catch { /* */ }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const statsList = [
+    { label: 'Total Students', value: stats.totalStudents, icon: Users },
+    { label: 'Pending Rebates', value: stats.pendingRebates, icon: FileText },
+    { label: 'Today\'s Pre-bookings', value: stats.todaysPrebookings, icon: ShoppingCart },
+    { label: 'New Requests', value: stats.newPersonRequests, icon: UserPlus },
   ];
 
   return (
@@ -118,7 +149,7 @@ function DashboardOverview() {
       <h2 className="text-2xl font-bold">Dashboard Overview</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+        {statsList.map((stat) => {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="border-2 border-black p-6">
@@ -153,10 +184,10 @@ function DashboardOverview() {
         <h3 className="text-lg font-bold mb-4">Recent Activities</h3>
         <div className="space-y-3">
           {[
+            { time: '1 min ago', text: 'System stats synchronized' },
             { time: '10 mins ago', text: 'New rebate request from Student #2301' },
             { time: '25 mins ago', text: 'Poll "Menu Preferences" ended' },
             { time: '1 hour ago', text: 'Menu updated for tomorrow' },
-            { time: '2 hours ago', text: 'New person request approved' },
           ].map((activity, i) => (
             <div key={i} className="flex items-center gap-4 pb-3 border-b border-gray-200 last:border-0">
               <span className="text-xs text-gray-500 w-24">{activity.time}</span>

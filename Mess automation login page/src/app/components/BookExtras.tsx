@@ -51,17 +51,29 @@ export function BookExtras() {
     fetchExtras();
   }, [activeSection]);
 
-  // ✅ PRE-BOOK STATE — UNCHANGED
-  const [preBookings, setPreBookings] = useState<PreBookItem[]>([
-    { dishName: 'Extra Roti (2 pcs)', meal: 'breakfast', booked: false },
-    { dishName: 'Paneer Curry', meal: 'breakfast', booked: false },
-    { dishName: 'Extra Rice Bowl', meal: 'lunch', booked: false },
-    { dishName: 'Paneer Curry', meal: 'lunch', booked: false },
-    { dishName: 'Chicken Curry', meal: 'lunch', booked: false },
-    { dishName: 'Extra Roti (2 pcs)', meal: 'dinner', booked: false },
-    { dishName: 'Egg Curry (2 eggs)', meal: 'dinner', booked: false },
-    { dishName: 'Ice Cream', meal: 'dinner', booked: false },
-  ]);
+  // ✅ PRE-BOOK STATE
+  const [preBookings, setPreBookings] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchSpecialItems = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/special-items/available', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Map to PreBookItem format
+          setPreBookings(data.map((item: any) => ({
+             ...item,
+             dishName: item.name,
+             booked: false
+          })));
+        }
+      } catch (err) { /* */ }
+    };
+    if (activeSection === 'prebook') fetchSpecialItems();
+  }, [activeSection]);
 
   // 🔹 CART + STOCK LOGIC
   const addToCart = (itemId: string) => {
@@ -166,7 +178,8 @@ export function BookExtras() {
           body: JSON.stringify({
             dishName: item.dishName,
             meal: item.meal,
-            date: dateStr
+            date: item.date, // Use the date configured by manager
+            SpecialItemId: item.id
           })
         });
       }

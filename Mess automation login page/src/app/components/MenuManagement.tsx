@@ -32,6 +32,13 @@ export function MenuManagement() {
 
   const [extraItems, setExtraItems] = useState<any[]>([]);
   const [currentBookings, setCurrentBookings] = useState<any[]>([]);
+  const [specialItems, setSpecialItems] = useState<any[]>([]);
+
+  // Special Item Form State
+  const [newSpecialName, setNewSpecialName] = useState('');
+  const [newSpecialPrice, setNewSpecialPrice] = useState('');
+  const [newSpecialMeal, setNewSpecialMeal] = useState('lunch');
+  const [newSpecialDate, setNewSpecialDate] = useState(new Date().toISOString().split('T')[0]);
 
   const fetchMenu = async () => {
     try {
@@ -87,7 +94,9 @@ export function MenuManagement() {
   const fetchBDMR = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/config/BDMR', {
+      const date = new Date();
+      const configKey = `BDMR_${date.getFullYear()}_${date.getMonth() + 1}`;
+      const res = await fetch(`http://localhost:5000/api/config/${configKey}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -97,16 +106,13 @@ export function MenuManagement() {
     } catch { /* */ }
   };
 
-  const fetchBookings = async () => {
+  const fetchSpecialItems = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/pre-booking', {
+      const res = await fetch('http://localhost:5000/api/special-items/available', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentBookings(data);
-      }
+      if (res.ok) setSpecialItems(await res.json());
     } catch { /* */ }
   };
 
@@ -115,6 +121,7 @@ export function MenuManagement() {
     fetchExtras();
     fetchBDMR();
     fetchBookings();
+    fetchSpecialItems();
   }, []);
 
   const handleSaveMenu = async (day: string) => {
@@ -235,32 +242,6 @@ export function MenuManagement() {
     </div>
   );
 
-  const handleAddItem = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/extras/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          name: newItemName, 
-          price: parseFloat(newItemPrice), 
-          category: newItemCategory,
-          isAvailable: true,
-          stockQuantity: 100 // Default stock
-        })
-      });
-      if (res.ok) {
-        alert("Item added!");
-        setShowAddItemForm(false);
-        setNewItemName(''); setNewItemPrice('');
-        fetchExtras();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to add item");
-      }
-    } catch { alert("Network error"); }
-  };
-
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     try {
       const token = localStorage.getItem('token');
@@ -269,104 +250,120 @@ export function MenuManagement() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ isAvailable: !currentStatus })
       });
+      if (res.ok) fetchExtras();
+    } catch { /* */ }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/pre-booking', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.ok) {
-        fetchExtras();
+        const data = await res.json();
+        setCurrentBookings(data);
       }
     } catch { /* */ }
   };
 
-  const renderExtrasManagement = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold">Manage Extra Items</h3>
-        <button 
-          onClick={() => setShowAddItemForm(!showAddItemForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-black text-white"
-        >
-          <Plus className="w-4 h-4" />
-          {showAddItemForm ? "Cancel" : "Add New Item"}
-        </button>
-      </div>
+  const handleCreateSpecial = async () => {
+    if (!newSpecialName || !newSpecialPrice) return alert("Please enter name and price");
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5000/api/special-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          name: newSpecialName, 
+          price: parseFloat(newSpecialPrice), 
+          meal: newSpecialMeal,
+          date: newSpecialDate 
+        })
+      });
+      if (res.ok) {
+        fetchSpecialItems();
+        setNewSpecialName(''); setNewSpecialPrice('');
+        alert("Special item created!");
+      }
+    } catch { /* */ }
+  };
 
-      {showAddItemForm && (
-        <div className="border-2 border-black p-6 mb-6">
-          <h4 className="font-bold mb-4">Add New Extra Item</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <input type="text" placeholder="Item Name" value={newItemName} onChange={e => setNewItemName(e.target.value)} className="p-2 border border-black" />
-            <input type="number" placeholder="Price" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} className="p-2 border border-black" />
-            <select value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)} className="p-2 border border-black bg-white">
-               <option value="Snacks">Snacks</option>
-               <option value="Drinks">Drinks</option>
-               <option value="Special">Special</option>
-            </select>
-          </div>
-          <button onClick={handleAddItem} className="px-6 py-2 bg-black text-white">Create Item</button>
-        </div>
-      )}
-
-      <div className="border-2 border-black">
-        <table className="w-full">
-          <thead className="bg-black text-white">
-            <tr>
-              <th className="px-4 py-3 text-left">Item Name</th>
-              <th className="px-4 py-3 text-left">Price</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {extraItems.map((item, idx) => (
-              <tr key={item.id} className={idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                <td className="px-4 py-3 font-medium">{item.name}</td>
-                <td className="px-4 py-3">₹{item.price}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`text-xs px-2 py-1 border ${
-                      item.available
-                        ? 'bg-green-100 text-green-800 border-green-600'
-                        : 'bg-red-100 text-red-800 border-red-600'
-                    }`}
-                  >
-                    {item.available ? 'AVAILABLE' : 'OUT OF STOCK'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => toggleStatus(item.id, item.available)}
-                      className="text-sm hover:underline"
-                    >
-                      Toggle Status
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  const handleUpdateBDMR = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const date = new Date();
+      const configKey = `BDMR_${date.getFullYear()}_${date.getMonth() + 1}`;
+      const res = await fetch('http://localhost:5000/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ key: configKey, value: bdmr })
+      });
+      if (res.ok) alert("BDMR Settings Updated for this month!");
+    } catch { alert("Network error"); }
+  };
 
   const renderPreBooking = () => (
     <div className="space-y-8">
       <div className="space-y-4">
-        <h3 className="text-lg font-bold">Pre-booking Configuration</h3>
+        <h3 className="text-lg font-bold">Initiate New Special Pre-booking</h3>
         <div className="border-2 border-black p-6">
-          <p className="text-sm text-gray-600 mb-4">
-            Enable/disable pre-booking for special items
-          </p>
-          <div className="space-y-3">
-            {['Weekend Special', 'Festival Menu', 'Birthday Cake'].map((item) => (
-              <div key={item} className="flex items-center justify-between p-4 border border-gray-300">
-                <span className="font-medium">{item}</span>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="w-5 h-5" defaultChecked={true} />
-                  <span className="text-sm">Enable Pre-booking</span>
-                </label>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <input type="text" placeholder="Item Name" value={newSpecialName} onChange={e => setNewSpecialName(e.target.value)} className="p-2 border border-black" />
+            <input type="number" placeholder="Cost" value={newSpecialPrice} onChange={e => setNewSpecialPrice(e.target.value)} className="p-2 border border-black" />
+            <select value={newSpecialMeal} onChange={e => setNewSpecialMeal(e.target.value)} className="p-2 border border-black bg-white">
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+            </select>
+            <input type="date" value={newSpecialDate} onChange={e => setNewSpecialDate(e.target.value)} className="p-2 border border-black" />
           </div>
+          <button onClick={handleCreateSpecial} className="px-6 py-2 bg-black text-white">Create Pre-booking Item</button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold">Manage Active Special Items</h3>
+        <div className="border-2 border-black overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-black text-white text-sm text-left">
+              <tr>
+                <th className="px-4 py-2">Item</th>
+                <th className="px-4 py-2">Cost</th>
+                <th className="px-4 py-2">Meal</th>
+                <th className="px-4 py-2">Date</th>
+                <th className="px-4 py-2">Action</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {specialItems.map((item) => (
+                <tr key={item.id} className="border-t border-gray-200">
+                  <td className="px-4 py-2">{item.name}</td>
+                  <td className="px-4 py-2">₹{item.price}</td>
+                  <td className="px-4 py-2 capitalize">{item.meal}</td>
+                  <td className="px-4 py-2">{item.date}</td>
+                  <td className="px-4 py-2">
+                    <button 
+                      onClick={async () => {
+                        const token = localStorage.getItem('token');
+                        await fetch(`http://localhost:5000/api/special-items/${item.id}`, { 
+                           method: 'DELETE',
+                           headers: { Authorization: `Bearer ${token}` }
+                        });
+                        fetchSpecialItems();
+                      }}
+                      className="text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {specialItems.length === 0 && (
+                 <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-400">No special items configured</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -405,18 +402,6 @@ export function MenuManagement() {
     </div>
   );
 
-  const handleUpdateBDMR = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ key: 'BDMR', value: bdmr })
-      });
-      if (res.ok) alert("BDMR Settings Updated!");
-    } catch { alert("Network error"); }
-  };
-
   const renderBDMR = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-bold">BDMR (Daily Mess Rate Settings)</h3>
@@ -441,6 +426,108 @@ export function MenuManagement() {
       </div>
     </div>
   );
+
+  function renderExtrasManagement() {
+    return (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold">Extra Items Inventory</h3>
+            <button 
+              onClick={() => setShowAddItemForm(!showAddItemForm)}
+              className="flex items-center gap-2 px-4 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add New Item
+            </button>
+          </div>
+    
+          {showAddItemForm && (
+            <div className="border-2 border-black p-6 bg-gray-50 space-y-4">
+              <h4 className="font-bold">Add New Extra Item</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <input type="text" placeholder="Item Name" value={newItemName} onChange={e => setNewItemName(e.target.value)} className="p-2 border border-black" />
+                <input type="number" placeholder="Price (₹)" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} className="p-2 border border-black" />
+                <select value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)} className="p-2 border border-black bg-white">
+                  <option>Snacks</option>
+                  <option>Breakfast</option>
+                  <option>Lunch</option>
+                  <option>Dinner</option>
+                  <option>All</option>
+                </select>
+              </div>
+              <button 
+                onClick={async () => {
+                    const token = localStorage.getItem('token');
+                    await fetch('http://localhost:5000/api/extras', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ name: newItemName, price: newItemPrice, mealType: newItemCategory, day: 'All' })
+                    });
+                    fetchExtras();
+                    setShowAddItemForm(false);
+                }}
+                className="px-6 py-2 bg-black text-white"
+              >
+                Add to Inventory
+              </button>
+            </div>
+          )}
+    
+          <div className="border-2 border-black overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-black text-white text-sm">
+                <tr>
+                  <th className="px-4 py-3 text-left">Item Name</th>
+                  <th className="px-4 py-3 text-left">Category</th>
+                  <th className="px-4 py-3 text-left">Price</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {extraItems.map((item) => (
+                  <tr key={item.id} className="border-t border-black">
+                    <td className="px-4 py-3 font-medium">{item.name}</td>
+                    <td className="px-4 py-3 capitalize">{item.mealType}</td>
+                    <td className="px-4 py-3">₹{item.price}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {item.isAvailable ? 'Available' : 'Unavailable'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => toggleStatus(item.id, item.available)}
+                          className="text-sm bg-gray-100 px-2 py-1 rounded hover:bg-gray-200"
+                        >
+                          Toggle
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            const token = localStorage.getItem('token');
+                            await fetch(`http://localhost:5000/api/extras/${item.id}`, { 
+                               method: 'DELETE',
+                               headers: { Authorization: `Bearer ${token}` }
+                            });
+                            fetchExtras();
+                          }}
+                          className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+  }
 
   return (
     <div className="space-y-6">
@@ -469,7 +556,7 @@ export function MenuManagement() {
       </div>
 
       {/* Tab Content */}
-      <div>
+      <div className="mt-6">
         {activeTab === 'daily' && renderDailyMenu()}
         {activeTab === 'extras' && renderExtrasManagement()}
         {activeTab === 'prebooking' && renderPreBooking()}
